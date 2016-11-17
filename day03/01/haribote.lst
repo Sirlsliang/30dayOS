@@ -1,0 +1,14 @@
+     1                                  ;haribote-os
+     2                                  ;TAB = 4
+     3                                  
+     4                                  ; 有关BOOT_INFO
+     5                                  	ORG 0xc400				; 程序装载到内存的位置
+     6                                  	
+     7 00000000 B013                    	mov	AL,0x13			;VGA 显卡，320x200x8 位彩色
+     8 00000002 B400                    	mov	AH,0x00
+     9 00000004 CD10                    	INT 0x10
+    10                                  
+    11                                  fin:
+    12                                  	HTL
+    12          ******************       warning: label alone on a line without a colon might be in error
+    13 00000006 EBFE                    	JMP fin
