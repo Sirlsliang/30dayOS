@@ -9,6 +9,7 @@ void io_store_eflags(int eflags);
 /*即使在同一个文件中，如果想在定义之前使用，还是必须事先声明一下*/
 void init_palette(void);
 void set_palette(int start, int end, unsigned char *rgb);
+void boxfill8(unsigned char *vram, int xSize, unsigned char c, int x0, int y0,int x1, int y1);
 
 #define COL8_000000		0
 #define COL8_FF0000		1
@@ -31,19 +32,45 @@ void set_palette(int start, int end, unsigned char *rgb);
 
 
 void HariMain(void){
-	int i;
-	char *p ;
-	
+	char *vram;
+	int 	xSize,ySize;
+
 	init_palette(); /*初始化调色板*/
+	
+	vram = (char*) 0xa0000;
+	xSize = 320;
+	ySize = 200;
 
-	p = (char*) 0xa0000;
+	boxfill8(vram, xSize, COL8_008484, 0,		0,				xSize - 1, ySize-29);
+	boxfill8(vram, xSize, COL8_C6C6C6, 0,		ySize-28,	xSize - 1, ySize-28);
+	boxfill8(vram, xSize, COL8_FFFFFF, 0,		ySize-27,	xSize - 1, ySize-27);
+	boxfill8(vram, xSize, COL8_C6C6C6, 0,		ySize-26,	xSize - 1, ySize- 1);
 
-	for(i = 0; i<= 0xffff; i++){
-		p[i] = i & 0x0f;
-	}
+	boxfill8(vram, xSize, COL8_FFFFFF, 3,		ySize-24,	59,				 ySize-24);
+	boxfill8(vram, xSize, COL8_FFFFFF, 2,		ySize-24,	 2,				 ySize- 4);
+	boxfill8(vram, xSize, COL8_848484, 3,		ySize- 4,	59,				 ySize- 4);
+	boxfill8(vram, xSize, COL8_848484,59,		ySize-23,	59,				 ySize- 5);
+	boxfill8(vram, xSize, COL8_000000, 2,		ySize- 3,	59,				 ySize- 3);
+	boxfill8(vram, xSize, COL8_000000,60,		ySize-24,	60,				 ySize- 3);
+
+	boxfill8(vram, xSize, COL8_848484,xSize-47, ySize-24,	xSize- 4, ySize-24);
+	boxfill8(vram, xSize, COL8_848484,xSize-47, ySize-23,	xSize-47, ySize- 4);
+	boxfill8(vram, xSize, COL8_FFFFFF,xSize-47, ySize- 3,	xSize- 4, ySize- 3);
+	boxfill8(vram, xSize, COL8_FFFFFF,xSize- 3, ySize-24,	xSize- 3, ySize- 3);
+
 	for(;;){
 		io_hlt();
 	}
+}
+
+void boxfill8(unsigned char *vram, int xSize, unsigned char c, int x0, int y0, int x1, int y1){
+	int x,y;
+	for (y = y0; y<=y1;y++){
+		for (x= x0; x<=x1;x++){
+			vram[y*xSize+x] = c;
+		}
+	}
+	return;
 }
 
 void init_palette(void){
