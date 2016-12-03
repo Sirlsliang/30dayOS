@@ -1,4 +1,5 @@
-OBJS_BOOTPACK	= bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj int.obj fifo.obj
+OBJS_BOOTPACK	= bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj int.obj fifo.obj \
+								keyboard.obj mouse.obj
 # 添加默认命令
 TOOL_PATH := ../../z_tools/
 INCPATH		:=	$(TOOL_PATH)haribote/

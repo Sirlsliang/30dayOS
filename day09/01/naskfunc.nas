@@ -14,6 +14,8 @@
 	GLOBAL	_io_load_eflags, _io_store_eflags
 	GLOBAL	_load_gdtr,	_load_idtr
 	GLOBAL	_asm_inthandler21, _asm_inthandler27, _asm_inthandler2c
+	GLOBAL	_load_cr0, _store_cr0 
+	GLOBAL	_memtest_sub
 	EXTERN	_inthandler21, _inthandler27, _inthandler2c
 
 ; 以下是实际的函数
@@ -141,3 +143,48 @@ _asm_inthandler2c:
 	POP	DS
 	POP	ES
 	IRETD
+
+_load_cr0:					; int load_cr0(void);
+	mov	EAX, CR0
+	RET
+
+_store_cr0:					; void store_cr0(int cr0);
+	mov	EAX,	[ESP+4]
+	mov	CR0,	EAX
+	RET
+
+_memtest_sub:				; unsigned int memtest_sub(unsigned int start, unsigned int end);
+	push EDI					; EBX, ESI, EDI 还要使用
+	push ESI
+	push EBX
+	mov	ESI, 0xaa55aa55		; pat0 = 0xaa55aa55
+	mov	EDI, 0x55aa55aa		; pat1 = 0x55aa55aa
+	mov	EAX, [ESP+12+4]		; i = start
+mts_loop:
+	mov	EBX,	EAX
+	add	EBX,	0xffc				; p = i + 0xffc
+	mov	EDX,	[EBX]				; old = *p,EBX存放的是地址，[EBX]就是取该地址中存放的数
+	mov	[EBX], ESI				; *p = pat0
+	xor	DWORD [EBX], 0xffffffff	; *p ^= 0xffffffff;
+	cmp EDI,	[EBX]				; if(*p != pat1) goto fin;
+	jne	mts_fin
+	xor	DWORD [EBX], 0xffffffff ; *p ^= 0xffffffff;
+	cmp ESI,	[EBX]				; if (*p != pat0) goto fin;
+	jne	mts_fin
+	mov	[EBX], EDX				; *p = old
+	add	EAX,	0x1000			; i += 0x1000
+	cmp EAX,	[ESP+12+8]	; if(i<= end) goto mts_loop;
+
+	jbe	mts_loop
+	pop	EBX
+	pop	ESI
+	pop	EDI
+	RET
+mts_fin:
+	mov	[EBX], EDX				; *p = old
+	pop	EBX
+	pop ESI
+	pop EDI
+	RET
+	
+
