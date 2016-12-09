@@ -9,7 +9,7 @@ void inthandler2c(int *esp){
 	io_out8(PIC1_OCW2, 0x64); //	通知PIC1(从中断控制器) IRQ-12的受理已经完成
 	io_out8(PIC0_OCW2, 0x62);	//	通知PIC0(主中断控制器) IRQ-02的受理已经完成
 	data = io_in8(PORT_KEYDAT); //	跟键盘一样
-	fifo32_put(mousefifo,data + mousedata0);
+	fifo32_put(mousefifo, data + mousedata0);
 	return;
 }
 
@@ -69,7 +69,7 @@ int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat){
 		if((mdec->buf[0] & 0x20) != 0){
 			mdec->y |= 0xffffff00;
 		}
-		mdec->y = -mdec->y; // 鼠标的方向与画面符号相反
+		mdec->y = - mdec->y; // 鼠标的方向与画面符号相反
 		return 1;
 
 	}

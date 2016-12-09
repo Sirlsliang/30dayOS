@@ -94,6 +94,7 @@ void HariMain(void){
 				putfonts8_asc_sht(sht_back, 0, 16, COL8_FFFFFF, COL8_008484, s, 2);
 			} else if (fifo8_status(&mousefifo) != 0){
 				i = fifo8_get(&mousefifo);
+		
 				io_sti();
 				if (mouse_decode(&mdec, i) != 0){
 					/* 鼠标的三个字节都已经收集齐了,将他们显示出来 */

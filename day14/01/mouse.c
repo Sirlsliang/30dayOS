@@ -69,7 +69,7 @@ int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat){
 		if((mdec->buf[0] & 0x20) != 0){
 			mdec->y |= 0xffffff00;
 		}
-		mdec->y = -mdec->y; // 鼠标的方向与画面符号相反
+		mdec->y = - mdec->y; // 鼠标的方向与画面符号相反
 		return 1;
 
 	}

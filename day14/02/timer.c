@@ -110,6 +110,6 @@ void inthandler20(int *esp){
 	timerctl.t0 = timer;
 
 	//	timerctl.next 的设定
-	timerctl.next_time = timer->timeout;
+	timerctl.next_time = timerctl.t0->timeout;
 	return;
 }

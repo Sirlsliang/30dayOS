@@ -14,7 +14,7 @@ void io_hlt(void);
 void io_cli(void);
 void io_sti(void);
 void io_stihlt(void);
-int  io_in8(int port);
+int io_in8(int port);
 void io_out8(int port, int data);
 int  io_load_eflags(void);
 void io_store_eflags(int eflags);
@@ -24,17 +24,6 @@ void asm_inthandler20(void);
 void asm_inthandler21(void);
 void asm_inthandler27(void);
 void asm_inthandler2c(void);
-unsigned int memtest_sub(unsigned int start, unsigned int end);
-
-/* fifo.c */
-struct FIFO32{
-	int *buf;
-	int p, q, size, free, flags;
-};
-void fifo32_init(struct FIFO32 *fifo, int size, int *buf);
-int  fifo32_put(struct FIFO32 *fifo, int data);
-int  fifo32_get(struct FIFO32 *fifo);
-int  fifo32_status(struct FIFO32 * fifo);
 
 /* graphic.c */
 void init_palette(void);
@@ -46,6 +35,7 @@ void putfonts8_asc(char* vram, int xsize, int x, int y, char c, unsigned char* s
 void init_mouse_cursor8(char* mouse, char bc);
 void putblock8_8(char* vram, int vxsize, int pxsize, int pysize, 
 		int px0, int py0, char *buf, int bxsize);
+
 #define COL8_000000		0
 #define COL8_FF0000		1
 #define COL8_00FF00		2
@@ -75,9 +65,11 @@ struct GATE_DESCRIPTOR{
 	char dw_count, access_right;
 	short offset_high;
 };
+
 void init_gdtidt(void);
 void set_segmdesc(struct SEGMENT_DESCRIPTOR *sd, unsigned int limit, int base, int ar);
 void set_gatedesc(struct GATE_DESCRIPTOR *gd, int offset, int selector, int ar);
+
 #define ADR_IDT		0x0026f800
 #define	LIMIT_IDT	0x000007ff
 #define	ADR_GDT		0x00270000
@@ -87,10 +79,28 @@ void set_gatedesc(struct GATE_DESCRIPTOR *gd, int offset, int selector, int ar);
 #define	AR_DATA32_RW	0x4092
 #define	AR_CODE32_ER	0x409a
 #define	AR_INTGATE32	0x008e
+/* fifo.c */
+struct FIFO8{
+	unsigned char *buf;
+	int p; /* 下一个数据写入地址 */
+	int q; /* 下一个数据读出地址 */
+	int size; /* 栈的大小 */
+	int free; /* 栈的空闲大小 */
+	int flags; /* 是否溢出 */
+};
+struct FIFO32{
+	int *buf;
+	int p, q, size, free, flags;
+};
+void fifo32_init(struct FIFO32 *fifo, int size, int *buf);
+int fifo32_put(struct FIFO32 *fifo, int data);
+int  fifo32_get(struct FIFO32 *fifo);
+int  fifo32_status(struct FIFO32 * fifo);
 
 /* init.c */
 void init_pic(void);
 void inthandler27(int *esp);
+void inthandler2c(int *esp);
 #define PIC0_ICW1	0x0020
 #define PIC0_OCW2	0x0020
 
@@ -109,7 +119,6 @@ void inthandler27(int *esp);
 /* keyboard.c */
 #define	PORT_KEYDAT	0x0060
 #define	PORT_KEYCMD	0x0064
-
 void inthandler21(int *esp);
 void init_keyboard(struct FIFO32 *fifo, int data0);
 void wait_KBC_sendready(void);

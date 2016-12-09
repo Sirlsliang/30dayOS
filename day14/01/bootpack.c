@@ -1,21 +1,22 @@
 #include "bootpack.h"
 #include <stdio.h>
 
-void make_window8(unsigned char* buf, int xsize, int ysize, char* title);
+void make_window8(unsigned char *buf, int xsize, int ysize, char *title);
 void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l);
+void set490(struct FIFO32 *fifo, int mode);
 // (x, y): 坐标; c:字符颜色; b: 背景颜色; s:字符串; l:字符串长度
 
 void HariMain(void){
 	/*在asmhead.nas文件中为每个地址赋值了*/
-	struct BOOTINFO *binfo = (struct BOOTINFO*) ADR_BOOTINFO;
+	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
 	struct FIFO32 fifo;
 	char s[40];
 	int fifobuf[128];
 	struct TIMER *timer, *timer2, *timer3;
-	int mx, my,i, count = 0;
+	int mx, my, i, count = 0;
 	unsigned int memtotal;
 	struct MOUSE_DEC mdec;
-	struct MEMMAN *memman = (struct MEMMAN*) MEMMAN_ADDR;
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
 	struct SHTCTL	*shtctl;
 	struct SHEET *sht_back,	*sht_mouse, *sht_win;
 	unsigned char *buf_back, buf_mouse[256], *buf_win;
@@ -36,6 +37,8 @@ void HariMain(void){
 
 	io_out8(PIC0_IMR, 0xf8); // PIT和PIC1和键盘设置为许可(11111000)	
 	io_out8(PIC1_IMR, 0xef); // 鼠标设置为许可(11101111)	
+
+ 	set490(&fifo, 1);
 
 	timer = timer_alloc();
 	timer_init(timer, &fifo, 10);
@@ -92,8 +95,6 @@ void HariMain(void){
 		if (fifo32_status(&fifo)== 0){
 			io_sti();
 		}else{
-			sprintf(s, "status: %d,free:%d,size:%d", fifo32_status(&fifo),fifo.free,fifo.size);
-			putfonts8_asc_sht(sht_back, 32, 16, COL8_FFFFFF, COL8_008484, s, 30);
 			i = fifo32_get(&fifo);
 			io_sti();
 			if (256 <= i && i<= 511){
@@ -148,7 +149,7 @@ void HariMain(void){
 					boxfill8(buf_back, binfo->scrnx, COL8_FFFFFF, 8, 96, 15, 111);
 					timer_settime(timer3, 50);
 					sheet_refresh(sht_back, 8, 96, 16, 112);
-			} else {
+			} else if (i == 0){
 					timer_init(timer3, &fifo, 1); // 	设置1
 					boxfill8(buf_back, binfo->scrnx, COL8_848484, 8, 96, 15, 111);
 					timer_settime(timer3, 50);
@@ -207,9 +208,23 @@ void make_window8(unsigned char* buf, int xsize, int ysize, char* title){
 	}
 	return;
 }
+
 void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l){
 	boxfill8(sht->buf, sht->bxsize, b, x, y, x + l * 8 -1,y + 15);
 	putfonts8_asc(sht->buf, sht->bxsize, x, y, c, s);
 	sheet_refresh(sht, x, y, x + l * 8, y + 16);
+	return;
+}
+
+void set490(struct FIFO32 *fifo, int mode){
+	int i;
+	struct TIMER *timer;
+	if (mode != 0){
+		for (i = 0; i < 490; i++){
+			timer = timer_alloc();
+			timer_init(timer, fifo, 1024 + i);
+			timer_settime(timer, 100 * 60 * 60 * 24 * 50 + i * 100);
+		}
+	}
 	return;
 }
