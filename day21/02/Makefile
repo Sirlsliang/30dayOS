@@ -107,12 +107,9 @@ clean	:
 	-rm *.bin
 	-rm *.lst
 	-rm *.obj
-	-rm *.gas
-	-rm bootpack.bim
-	-rm bootpack.nas
-	-rm bootpack.map
-	-rm bootpack.hrb
-	-rm bootpack.obj
+	-rm *.map
+	-rm *.bim
+	-rm *.hrb
 	-rm haribote.sys
 
 src :
