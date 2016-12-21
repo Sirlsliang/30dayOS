@@ -1,0 +1,183 @@
+     1                                  ;haribote-os
+     2                                  ;TAB = 4
+     3                                  
+     4                                  VBEMODE	EQU 0x105	
+     5                                  
+     6                                  BOTPAK	EQU	0x00280000
+     7                                  DSKCAC	EQU	0x00100000
+     8                                  DSKCAC0	EQU	0x00008000
+     9                                  ; 有关BOOT_INFO
+    10                                  CYLS	EQU	0x0ff0		;	设定启动区
+    11                                  LEDS	EQU	0x0ff1
+    12                                  VMODE	EQU	0x0ff2		;	关于颜色数目的信息，颜色的位数
+    13                                  SCRNX	EQU	0x0ff4		;	分辨率的X
+    14                                  SCRNY	EQU	0x0ff6		; 分辨率的Y
+    15                                  VRAM	EQU	0x0ff8		;	图像缓冲区的开始地址
+    16                                  
+    17                                  	ORG 0xc400				; 程序装载到内存的位置
+    18                                  ; 确认VBE是否存在
+    19 00000000 B80090                  	MOV	AX,	0x9000
+    20 00000003 8EC0                    	MOV	ES,	AX
+    21 00000005 BF0000                  	MOV	DI,	0
+    22 00000008 B8004F                  	MOV	AX,	0x4f00
+    23 0000000B CD10                    	INT	0x10
+    24 0000000D 83F84F                  	CMP	AX,	0x004f
+    25 00000010 7552                    	JNE	scrn320				; if(AX != 0x004f)
+    26                                  
+    27                                  ; 检测VBE的版本
+    28 00000012 268B4504                	MOV	AX,	[ES:DI + 4]
+    29 00000016 3D0002                  	CMP	AX,	0x0200
+    30 00000019 7249                    	JB	scrn320				; if (AX	< 0x0200 goto scrn320)
+    31                                  
+    32                                  ; 取得画面模式信息
+    33 0000001B B90501                  	MOV	CX,	VBEMODE
+    34 0000001E B8014F                  	MOV	AX,	0x4f01
+    35 00000021 CD10                    	INT	0x10
+    36 00000023 83F84F                  	CMP	AX,	0x004f
+    37 00000026 753C                    	JNE	scrn320
+    38                                  
+    39                                  ; 画面模式信息的确认
+    40 00000028 26807D1908              	CMP	BYTE	[ES:DI+0x19],8
+    41 0000002D 7535                    	JNE	scrn320
+    42 0000002F 26807D1B04              	CMP	BYTE	[ES:DI+0x1b],4
+    43 00000034 752E                    	JNE	scrn320
+    44 00000036 268B05                  	MOV	AX,	[ES:DI+0x00]
+    45 00000039 258000                  	AND	AX,	0x0080
+    46 0000003C 7426                    	JZ	scrn320				; 模式属性的bit7 是0,所以放弃
+    47                                  
+    48                                  ; 画面模式的切换
+    49 0000003E BB0541                  	MOV	BX,	VBEMODE+0x4000
+    50 00000041 B8024F                  	MOV	AX, 0x4f02
+    51 00000044 CD10                    	INT	0x10
+    52 00000046 C606F20F08              	MOV	BYTE	[VMODE], 8	;记下画面模式
+    53 0000004B 268B4512                	MOV	AX,	[ES:DI+0x12]
+    54 0000004F A3F40F                  	MOV	[SCRNX], AX
+    55 00000052 268B4514                	MOV	AX,	[ES:DI+0x14]
+    56 00000056 A3F60F                  	MOV	[SCRNY], AX
+    57 00000059 26668B4528              	MOV	EAX,[ES:DI+0x28]
+    58 0000005E 66A3F80F                	MOV	[VRAM], EAX
+    59 00000062 EB20                    	JMP	keystatus
+    60                                  	
+    61                                  scrn320:
+    62 00000064 B013                    	MOV	AL,	0x13			; VGA图，320×200×8bit彩色
+    63 00000066 B410                    	MOV	AH,	0x10
+    64 00000068 CD10                    	INT	0x10
+    65 0000006A C606F20F08              	MOV	BYTE	[VMODE], 8	; 记下画面模式
+    66 0000006F C706F40F4001            	MOV	WORD	[SCRNX],	320
+    67 00000075 C706F60FC800            	MOV	WORD	[SCRNY],	200
+    68 0000007B 66C706F80F00000A00      	MOV	DWORD	[VRAM],	0x000a0000
+    69                                  
+    70                                  ; 用BIOS取得键盘上各种欧冠你LED指示灯的状态
+    71                                  keystatus:
+    72 00000084 B402                    	MOV	AH, 0x02
+    73 00000086 CD16                    	INT	0x16						; KeyBoard BIOS
+    74 00000088 A2F10F                  	MOV [LEDS], AL
+    75                                  ;PCI 关闭一切中断
+    76                                  ;根据AT兼容机的规格，如果要初始化PIC必须在CLI之前进行
+    77                                  ;否则有时会挂起，随后进行PIC的初始化
+    78                                  
+    79 0000008B B0FF                    	MOV	AL,	0xff
+    80 0000008D E621                    	OUT	0x21,	AL
+    81 0000008F 90                      	NOP									; 什么指令都不做，让CPU休息一个时钟
+    82 00000090 E6A1                    	OUT	0xa1,	AL
+    83 00000092 FA                      	CLI 								;禁止CPU级别的中断
+    84                                  
+    85                                  ;为了让CPU能够访问1MB以上的内存空间，设定A20GATE
+    86                                  ; 往键盘控制电路发送指令
+    87 00000093 E8B500                  	CALL waitkbdout			; wait_KBC_sendready
+    88 00000096 B0D1                    	MOV	AL,	0xd1
+    89 00000098 E664                    	OUT	0x64,	AL
+    90 0000009A E8AE00                  	CALL waitkbdout
+    91 0000009D B0DF                    	MOV	AL,	0xdf
+    92 0000009F E660                    	OUT	0x60,	AL
+    93 000000A1 E8A700                  	CALL waitkbdout
+    94                                  
+    95                                  ;切换到保护模式
+    96                                  ;[INSTRSET "i486p"]
+    97 000000A4 0F0116[8A01]            	LGDT	[GDTR0]										;设定临时GDT
+    98 000000A9 0F20C0                  	MOV	EAX,	CR0
+    99 000000AC 6625FFFFFF7F            	AND	EAX,	0x7fffffff						;	设bit31为0(为了禁止颁)
+   100 000000B2 6683C801                	OR	EAX,	0x00000001						;	设bit0为1(为了切换到保护模式)
+   101 000000B6 0F22C0                  	MOV	CR0,	EAX
+   102 000000B9 EB00                    	JMP	pipelINeflush
+   103                                  
+   104                                  pipelINeflush:
+   105 000000BB B80800                  	MOV	AX,	1*8											;	可读写的段 32bit
+   106 000000BE 8ED8                    	MOV	DS,	AX
+   107 000000C0 8EC0                    	MOV	ES,	AX
+   108 000000C2 8EE0                    	MOV	FS,	AX
+   109 000000C4 8EE8                    	MOV	GS,	AX
+   110 000000C6 8ED0                    	MOV	SS,	AX
+   111                                  
+   112                                  
+   113                                  ;	bootpack的转送
+   114 000000C8 66BE[90010000]          	MOV	ESI,	bootpack							;	转送源
+   115 000000CE 66BF00002800            	MOV	EDI,	BOTPAK								;	转送目的地
+   116 000000D4 66B900000200            	MOV	ECX,	512*1024/4
+   117 000000DA E87500                  	CALL	memcpy
+   118                                  
+   119                                  ;	磁盘数据最终转送到它本来的位置去
+   120                                  ;	首先从启动扇区开始
+   121 000000DD 66BE007C0000            	MOV	ESI,	0x7c00										;	转送源
+   122 000000E3 66BF00001000            	MOV	EDI,	DSKCAC										;	转送目的地
+   123 000000E9 66B980000000            	MOV	ECX,	512/4
+   124 000000EF E86000                  	CALL	memcpy
+   125                                  
+   126                                  ;	所有剩下的
+   127 000000F2 66BE00820000            	MOV	ESI,	DSKCAC0+512								;	转送源
+   128 000000F8 66BF00021000            	MOV	EDI,	DSKCAC+512								;	转送目的地
+   129 000000FE 66B900000000            	MOV	ECX,	0
+   130 00000104 8A0EF00F                	MOV	CL,		BYTE	[CYLS]
+   131 00000108 6669C900120000          	IMUL	ECX,	512*18*2/4							;	从柱面数变为字节数/4
+   132 0000010F 6681E980000000          	SUB	ECX,	512/4											;	减去	IPL
+   133 00000116 E83900                  	CALL	memcpy
+   134                                  
+   135                                  ;	必须由asmhead来完成的工作，至此全部完毕，以后就交给bootpack来完成
+   136                                  
+   137                                  ;	bootpack的启动
+   138 00000119 66BB00002800            	MOV	EBX,	BOTPAK
+   139 0000011F 66678B4B10              	MOV	ECX,	[EBX+16]
+   140 00000124 6683C103                	ADD	ECX,	3								; ECX +=3
+   141 00000128 66C1E902                	SHR	ECX,	2								; ECX	/=2
+   142 0000012C 7410                    	JZ	skip
+   143 0000012E 66678B7314              	MOV	ESI,	[EBX+20]									;	转送源
+   144 00000133 6601DE                  	ADD	ESI,	EBX
+   145 00000136 66678B7B0C              	MOV	EDI,	[EBX+12]									;	转送目的地
+   146 0000013B E81400                  	CALL	memcpy
+   147                                  
+   148                                  skip:
+   149 0000013E 66678B630C              	MOV	ESP,	[EBX+12]
+   150 00000143 66EA1B0000001000        	jmp	DWORD 2*8:0x0000001b
+   151                                  
+   152                                  waitkbdout:
+   153 0000014B E464                    	IN	AL,	0x64
+   154 0000014D 2402                    	AND	AL,	0x02
+   155 0000014F 75FA                    	JNZ	waitkbdout												;	AND 的结果不是0,就跳转到waitkbdout
+   156 00000151 C3                      	RET
+   157                                  
+   158                                  memcpy:
+   159 00000152 66678B06                	MOV	EAX,	[ESI]
+   160 00000156 6683C604                	ADD	ESI,	4
+   161 0000015A 66678907                	MOV	[EDI],	EAX
+   162 0000015E 6683C704                	ADD	EDI,	4
+   163 00000162 6683E901                	sub	ECX,	1
+   164 00000166 75EA                    	JNZ	memcpy														;	减法运算的结果如果不是0,就跳转到memcpy
+   165 00000168 C3                      	RET
+   166                                  	
+   167 00000169 <res 00000007>          	ALIGNB	16
+   167          ******************       warning: uninitialized space declared in .text section: zeroing
+   168                                  
+   169                                  GDT0:
+   170 00000170 <res 00000008>          	RESB	8																; NULL selector
+   170          ******************       warning: uninitialized space declared in .text section: zeroing
+   171 00000178 FFFF00000092CF00        	DW	0xffff,	0x0000,	0x9200,	0x00cf		;	可以读写的段(segment) 32bit
+   172 00000180 FFFF0000289A4700        	DW	0xffff,	0x0000,	0x9a28,	0x0047		;	可以执行的段(segment) 32bit(bootpack 用)
+   173                                  	
+   174 00000188 0000                    	DW	0
+   175                                  
+   176                                  GDTR0:
+   177 0000018A 1700                    	DW	8*3-1
+   178 0000018C [70010000]              	DD	GDT0
+   179                                  	ALIGNB	16
+   180                                  
+   181                                  bootpack:

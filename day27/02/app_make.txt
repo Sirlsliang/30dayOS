@@ -1,0 +1,67 @@
+# 添加默认命令
+TOOL_PATH := ../../z_tools/
+INCPATH		:=	$(TOOL_PATH)haribote/
+APILIBPATH := ../apilib/
+HARIBOTEPAHT := ../haribote/
+
+CC1				:= wine	$(TOOL_PATH)cc1.exe -I $(INCPATH) -Os -Wall -quiet
+GAS2NASK	:= wine	$(TOOL_PATH)gas2nask.exe -a
+
+NASK			:= wine $(TOOL_PATH)nask.exe
+OBJ2BIM		:= wine	$(TOOL_PATH)obj2bim.exe
+RULEFILE	:= $(TOOL_PATH)haribote/haribote.rul
+BIM2HRB		:= wine	$(TOOL_PATH)bim2hrb.exe
+MAKEFONT	:= wine	$(TOOL_PATH)makefont.exe
+BIN2OBJ		:= wine	$(TOOL_PATH)bin2obj.exe
+
+default :
+	make $(APP).hrb
+
+$(APP).bim : $(APP).obj $(APILIBPATH) Makefile ../app_make.txt
+	$(OBJ2BIM) @$(RULEFILE) out:$(APP).bim map:$(APP).map stack:$(STACK)  \
+		$(APP).obj $(APILIBPATH)apilib.lib
+
+$(APP).hrb : $(APP).bim Makefile ../app_make.txt
+	$(BIM2HRB) $(APP).bim $(APP).hrb $(MALLOC)
+
+haribote.img : ../haribote/ipl.bin ../haribote/haribote.sys $(APP).hrb \
+		Makefile ../app_make.txt
+
+	dd if=../haribote/ipl.bin of=haribote.img bs=1 
+	dd if=/dev/zero of=haribote.img bs=512 seek=1 count=2879
+	- sudo umount /mnt
+	sudo mount -o loop haribote.img /mnt
+	sudo cp  ../harbote/haribote.sys	/mnt
+	sudo cp  $(APP).hrb		/mnt
+	sudo umount /mnt
+
+%.gas : %.c ../apilib.h  Makefile ../app_make.txt
+	$(CC1) -o $*.gas $*.c
+
+%.nas	:	%.gas	Makefile	../app_make.txt
+	$(GAS2NASK) $*.gas $*.nas
+
+%.obj :	%.nas	Makefile ../app_make.txt
+	$(NASK)	$*.nas $*.obj	$*.lst
+
+img :
+	make -r haribote.img
+
+run :	haribote.img
+	qemu-system-i386 -fda haribote.img
+
+run_full:
+	make -C $(APILIBPATH)
+	make -C ../haribote
+	make run
+
+clean	: 
+	-rm *.lst
+	-rm *.obj
+	-rm *.map
+	-rm *.bim
+	-rm haribote.img
+
+src :
+	make clean
+	-rm -f $(APP).hrb
